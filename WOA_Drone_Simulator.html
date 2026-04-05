@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drone Path Optimization — Whale Optimization Algorithm | Group 14</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0a0e1a;
+  --bg2:      #0f1525;
+  --bg3:      #151c30;
+  --panel:    #111827;
+  --border:   rgba(99,179,237,0.15);
+  --border2:  rgba(99,179,237,0.30);
+  --accent:   #3b82f6;
+  --accent2:  #10b981;
+  --accent3:  #f59e0b;
+  --text:     #e2e8f0;
+  --muted:    #64748b;
+  --mono:     'JetBrains Mono', monospace;
+  --display:  'Syne', sans-serif;
+  --body:     'DM Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── animated grid bg ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 2rem; }
+
+/* ── Header ── */
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 1.25rem 0;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .75rem;
+}
+.header-left { display: flex; align-items: center; gap: 1rem; }
+.logo-mark {
+  width: 40px; height: 40px;
+  border: 1.5px solid var(--accent);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px; font-weight: 600;
+  color: var(--accent);
+  letter-spacing: .05em;
+  flex-shrink: 0;
+}
+.header-title {
+  font-family: var(--display);
+  font-size: 17px; font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.01em;
+}
+.header-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge {
+  font-family: var(--mono);
+  font-size: 10px; font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 4px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.badge-blue  { background: rgba(59,130,246,.15); color: #93c5fd; border: 1px solid rgba(59,130,246,.3); }
+.badge-green { background: rgba(16,185,129,.15); color: #6ee7b7; border: 1px solid rgba(16,185,129,.3); }
+.badge-amber { background: rgba(245,158,11,.15);  color: #fcd34d; border: 1px solid rgba(245,158,11,.3); }
+
+/* ── Controls bar ── */
+.controls-bar {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  display: flex; flex-wrap: wrap; gap: 1.25rem;
+  align-items: flex-end;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 5px; }
+.ctrl-group label {
+  font-family: var(--mono);
+  font-size: 10px; font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em;
+}
+.ctrl-row { display: flex; align-items: center; gap: 8px; }
+.ctrl-val {
+  font-family: var(--mono);
+  font-size: 13px; font-weight: 600;
+  color: var(--accent);
+  min-width: 32px;
+}
+
+input[type=range] {
+  -webkit-appearance: none;
+  width: 120px; height: 4px;
+  background: var(--border2);
+  border-radius: 2px; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  cursor: pointer;
+  transition: transform .15s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+.btn-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-left: auto; }
+button {
+  font-family: var(--mono);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: .04em;
+  padding: 8px 16px;
+  border-radius: 7px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: all .15s;
+  text-transform: uppercase;
+}
+button:hover { background: rgba(59,130,246,.12); border-color: var(--accent); color: #93c5fd; }
+button:active { transform: scale(.97); }
+button:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
+button.run-btn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  padding: 8px 22px;
+}
+button.run-btn:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
+button.run-btn.stop-mode { background: #ef4444; border-color: #ef4444; }
+button.run-btn.stop-mode:hover { background: #dc2626; border-color: #dc2626; }
+
+/* ── Stats row ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0,1fr));
+  gap: 10px;
+  margin-bottom: 1.25rem;
+}
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: .75rem 1rem;
+}
+.stat-card .s-label {
+  font-family: var(--mono);
+  font-size: 10px; font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase; letter-spacing: .07em;
+  margin-bottom: 4px;
+}
+.stat-card .s-val {
+  font-family: var(--mono);
+  font-size: 22px; font-weight: 600;
+  color: var(--text);
+  line-height: 1.1;
+}
+.stat-card .s-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── Main grid ── */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.canvas-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.cp-header {
+  padding: .65rem 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.cp-title {
+  font-family: var(--mono);
+  font-size: 11px; font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase; letter-spacing: .07em;
+}
+.cp-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: rgba(59,130,246,.12);
+  color: #93c5fd;
+  border: 1px solid rgba(59,130,246,.25);
+}
+canvas { display: block; width: 100%; }
+
+/* ── Legend ── */
+.legend {
+  padding: .5rem 1rem;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 1rem; flex-wrap: wrap;
+}
+.leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.leg-line { width: 16px; height: 2px; border-radius: 1px; flex-shrink: 0; }
+
+/* ── Bottom row ── */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* ── Log ── */
+.log-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.log-scroll {
+  padding: .75rem 1rem;
+  max-height: 200px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.9;
+}
+.log-scroll::-webkit-scrollbar { width: 4px; }
+.log-scroll::-webkit-scrollbar-track { background: transparent; }
+.log-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.log-line { color: var(--muted); }
+.log-line.iter { color: var(--text); }
+.log-line.improved { color: #6ee7b7; }
+.log-line.local { color: #93c5fd; }
+.log-line.done { color: var(--accent3); font-weight: 600; }
+.log-line.init { color: #c084fc; }
+
+/* ── Info panel ── */
+.info-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.info-content { padding: .75rem 1rem; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.info-row {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: .5rem .75rem;
+}
+.info-row .i-label { font-size: 10px; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+.info-row .i-val   { font-size: 13px; color: var(--text); font-family: var(--mono); margin-top: 2px; }
+
+/* ── Phase indicator ── */
+.phase-bar {
+  display: flex; gap: 8px; margin-top: 10px;
+}
+.phase-item {
+  flex: 1; padding: .4rem .6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  text-align: center;
+  font-family: var(--mono); font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em;
+  transition: all .3s;
+}
+.phase-item.active-exploit { background: rgba(16,185,129,.15); border-color: rgba(16,185,129,.4); color: #6ee7b7; }
+.phase-item.active-explore { background: rgba(59,130,246,.15); border-color: rgba(59,130,246,.4); color: #93c5fd; }
+.phase-item.active-spiral  { background: rgba(245,158,11,.15);  border-color: rgba(245,158,11,.4);  color: #fcd34d; }
+.phase-item.active-local   { background: rgba(192,132,252,.15); border-color: rgba(192,132,252,.4); color: #c084fc; }
+
+/* ── Footer ── */
+footer {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: .5rem;
+}
+.footer-txt { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+/* ── Pulse animation ── */
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+.pulse { animation: pulse-dot 1.2s ease-in-out infinite; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
+.fade-in { animation: fadeIn .3s ease forwards; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<header>
+  <div class="header-left">
+    <div class="logo-mark">WOA</div>
+    <div>
+      <div class="header-title">Drone Path Optimization — Whale Optimization Algorithm</div>
+      <div class="header-sub">NSUT &nbsp;·&nbsp; COCSC303 — Design &amp; Analysis of Algorithms &nbsp;·&nbsp; Group 14</div>
+    </div>
+  </div>
+  <div class="badges">
+    <span class="badge badge-blue">C++ Algorithm</span>
+    <span class="badge badge-green">Live Simulation</span>
+    <span class="badge badge-amber">DAA Mini Project</span>
+  </div>
+</header>
+
+<!-- Controls -->
+<div class="controls-bar">
+  <div class="ctrl-group">
+    <label>Waypoints (M)</label>
+    <div class="ctrl-row">
+      <input type="range" id="sl-pts" min="5" max="30" value="15" step="1">
+      <span class="ctrl-val" id="v-pts">15</span>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <label>Whales / Population (N)</label>
+    <div class="ctrl-row">
+      <input type="range" id="sl-wh" min="5" max="30" value="10" step="1">
+      <span class="ctrl-val" id="v-wh">10</span>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <label>Max Iterations (T)</label>
+    <div class="ctrl-row">
+      <input type="range" id="sl-it" min="5" max="50" value="20" step="1">
+      <span class="ctrl-val" id="v-it">20</span>
+    </div>
+  </div>
+  <div class="ctrl-group">
+    <label>Animation Speed</label>
+    <div class="ctrl-row">
+      <input type="range" id="sl-sp" min="80" max="1000" value="350" step="50">
+      <span class="ctrl-val" id="v-sp">350ms</span>
+    </div>
+  </div>
+  <div class="btn-group">
+    <button onclick="newPoints()">New Points</button>
+    <button id="btn-step" onclick="stepOnce()" disabled>Step</button>
+    <button onclick="resetAll()">Reset</button>
+    <button class="run-btn" id="btn-run" onclick="toggleRun()">&#9654; Run</button>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="s-label">Best Distance</div>
+    <div class="s-val" id="s-dist">—</div>
+    <div class="s-sub">Euclidean units</div>
+  </div>
+  <div class="stat-card">
+    <div class="s-label">Iteration</div>
+    <div class="s-val" id="s-iter">0 / 20</div>
+    <div class="s-sub">of max iterations</div>
+  </div>
+  <div class="stat-card">
+    <div class="s-label">Improvement</div>
+    <div class="s-val" id="s-imp">—</div>
+    <div class="s-sub">from initial path</div>
+  </div>
+  <div class="stat-card">
+    <div class="s-label">Parameter a</div>
+    <div class="s-val" id="s-a">2.00</div>
+    <div class="s-sub">exploration → exploit</div>
+  </div>
+  <div class="stat-card">
+    <div class="s-label">Status</div>
+    <div class="s-val" id="s-status" style="font-size:14px;color:#64748b">Ready</div>
+    <div class="s-sub" id="s-phase">&nbsp;</div>
+  </div>
+</div>
+
+<!-- Main canvases -->
+<div class="main-grid">
+  <div class="canvas-panel">
+    <div class="cp-header">
+      <span class="cp-title">Drone Path Map</span>
+      <span class="cp-badge" id="map-badge">Waiting</span>
+    </div>
+    <canvas id="c-map" height="320"></canvas>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#10b981"></div> Depot (start)</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#3b82f6"></div> Waypoint</div>
+      <div class="leg-item"><div class="leg-line" style="background:#10b981"></div> Best path</div>
+      <div class="leg-item"><div class="leg-line" style="background:rgba(255,255,255,0.07)"></div> Whale paths</div>
+    </div>
+  </div>
+  <div class="canvas-panel">
+    <div class="cp-header">
+      <span class="cp-title">Convergence Graph — Iteration vs Distance</span>
+      <span class="cp-badge" id="graph-badge">O(N×M×T)</span>
+    </div>
+    <canvas id="c-graph" height="320"></canvas>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-line" style="background:#10b981"></div> Best distance per iteration</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#f59e0b"></div> Local search trigger</div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom -->
+<div class="bottom-grid">
+  <div class="log-panel">
+    <div class="cp-header">
+      <span class="cp-title">Execution Log</span>
+      <span class="cp-badge" id="log-count">0 lines</span>
+    </div>
+    <div class="log-scroll" id="log"></div>
+  </div>
+  <div class="info-panel">
+    <div class="cp-header">
+      <span class="cp-title">Algorithm State</span>
+      <span class="cp-badge">WOA Parameters</span>
+    </div>
+    <div class="info-content">
+      <div class="info-grid">
+        <div class="info-row"><div class="i-label">Complexity</div><div class="i-val">O(N × M × T)</div></div>
+        <div class="info-row"><div class="i-label">Space</div><div class="i-val">O(N × M)</div></div>
+        <div class="info-row"><div class="i-label">Whales (N)</div><div class="i-val" id="i-wh">10</div></div>
+        <div class="info-row"><div class="i-label">Waypoints (M)</div><div class="i-val" id="i-pts">15</div></div>
+        <div class="info-row"><div class="i-label">Initial dist</div><div class="i-val" id="i-init">—</div></div>
+        <div class="info-row"><div class="i-label">Current best</div><div class="i-val" id="i-best">—</div></div>
+      </div>
+      <div class="phase-bar" id="phase-bar">
+        <div class="phase-item" id="ph-exploit">Exploit</div>
+        <div class="phase-item" id="ph-explore">Explore</div>
+        <div class="phase-item" id="ph-spiral">Spiral</div>
+        <div class="phase-item" id="ph-local">Local</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-txt">NETAJI SUBHAS UNIVERSITY OF TECHNOLOGY &nbsp;·&nbsp; Group 14 &nbsp;·&nbsp; COCSC303</div>
+  <div class="footer-txt">Whale Optimization Algorithm — Mirjalili &amp; Lewis, 2016 &nbsp;·&nbsp; Implemented in C++</div>
+</footer>
+
+</div>
+
+<script>
+// ── Canvas setup ──
+const CM = document.getElementById('c-map');
+const CG = document.getElementById('c-graph');
+const ctxM = CM.getContext('2d');
+const ctxG = CG.getContext('2d');
+const DPR  = window.devicePixelRatio || 1;
+
+function resizeCanvases() {
+  [CM, CG].forEach(c => {
+    const w = c.parentElement.clientWidth;
+    c.style.width  = w + 'px';
+    c.style.height = '320px';
+    c.width  = w * DPR;
+    c.height = 320 * DPR;
+    c.getContext('2d').setTransform(DPR, 0, 0, DPR, 0, 0);
+  });
+}
+
+// ── Slider wiring ──
+function wire(id, outId, fmt) {
+  const sl = document.getElementById(id);
+  const out = document.getElementById(outId);
+  out.textContent = fmt ? fmt(+sl.value) : sl.value;
+  sl.addEventListener('input', () => { out.textContent = fmt ? fmt(+sl.value) : sl.value; });
+}
+wire('sl-pts', 'v-pts');
+wire('sl-wh',  'v-wh');
+wire('sl-it',  'v-it');
+wire('sl-sp',  'v-sp', v => v + 'ms');
+
+// ── State ──
+let pts = [], whales = [], best = null;
+let iter = 0, maxIter = 20;
+let convHistory = [];
+let localPoints = [];
+let running = false;
+let animTimer = null;
+let initDist = 0, startDist = 0;
+let logCount = 0;
+let lastPhase = '';
+
+// ── Math helpers ──
+function rnd(a, b) { return a + Math.random() * (b - a); }
+function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+function pathDist(path) {
+  let d = 0;
+  for (let i = 0; i < path.length - 1; i++) d += dist(pts[path[i]], pts[path[i+1]]);
+  d += dist(pts[path[path.length-1]], pts[path[0]]);
+  return d;
+}
+
+function randSwap(path) {
+  const p = [...path];
+  let a = Math.floor(Math.random() * p.length), b;
+  do { b = Math.floor(Math.random() * p.length); } while (b === a);
+  [p[a], p[b]] = [p[b], p[a]];
+  return p;
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function localSearch(w) {
+  let best2 = { path: [...w.path], fitness: w.fitness };
+  for (let k = 0; k < 6; k++) {
+    const np = randSwap(best2.path);
+    const nf = pathDist(np);
+    if (nf < best2.fitness) best2 = { path: np, fitness: nf };
+  }
+  return best2;
+}
+
+// ── Generate points ──
+function newPoints() {
+  stopRun();
+  const n = +document.getElementById('sl-pts').value;
+  pts = [];
+  for (let i = 0; i < n; i++) pts.push({ x: rnd(0.07, 0.93), y: rnd(0.07, 0.93) });
+  resetAll();
+}
+
+function initWhales() {
+  const n = +document.getElementById('sl-wh').value;
+  maxIter = +document.getElementById('sl-it').value;
+  const base = [...Array(pts.length).keys()];
+  whales = [];
+  for (let i = 0; i < n; i++) {
+    const path = shuffle([...base]);
+    whales.push({ path, fitness: pathDist(path) });
+  }
+  best = { ...whales.reduce((a, b) => a.fitness < b.fitness ? a : b) };
+  best.path = [...best.path];
+  initDist = startDist = best.fitness;
+  convHistory = [{ i: 0, d: best.fitness, local: false }];
+  localPoints = [];
+  iter = 0;
+  document.getElementById('i-wh').textContent  = n;
+  document.getElementById('i-pts').textContent = pts.length;
+  document.getElementById('i-init').textContent = best.fitness.toFixed(1);
+  updateStats();
+}
+
+// ── WOA step ──
+function woaStep() {
+  iter++;
+  const a = 2.0 - iter * (2.0 / maxIter);
+  let anyImproved = false;
+  let phaseThisIter = { exploit: 0, explore: 0, spiral: 0 };
+
+  for (let i = 0; i < whales.length; i++) {
+    const r = Math.random(), A = 2 * a * r - a, p = Math.random();
+    let candidate;
+    if (p < 0.5) {
+      if (Math.abs(A) < 1) {
+        candidate = { path: randSwap(best.path) };
+        phaseThisIter.exploit++;
+      } else {
+        candidate = { path: randSwap(whales[Math.floor(Math.random() * whales.length)].path) };
+        phaseThisIter.explore++;
+      }
+    } else {
+      candidate = { path: randSwap(best.path) };
+      phaseThisIter.spiral++;
+    }
+    candidate.fitness = pathDist(candidate.path);
+    if (candidate.fitness < whales[i].fitness) whales[i] = candidate;
+    if (whales[i].fitness < best.fitness) { best = { path: [...whales[i].path], fitness: whales[i].fitness }; anyImproved = true; }
+  }
+
+  // Dominant phase this iteration
+  const dom = Object.entries(phaseThisIter).sort((x,y)=>y[1]-x[1])[0][0];
+  setPhase(dom, false);
+
+  let localUsed = false;
+  if (iter % 3 === 0) {
+    const ls = localSearch(best);
+    if (ls.fitness < best.fitness) {
+      best = ls; anyImproved = true; localUsed = true;
+    }
+    setPhase('local', true);
+    localPoints.push(iter);
+  }
+
+  convHistory.push({ i: iter, d: best.fitness, local: localUsed });
+  updateStats(a, anyImproved, localUsed);
+  drawMap();
+  drawGraph();
+
+  const impPct = ((startDist - best.fitness) / startDist * 100).toFixed(1);
+  const logCls = localUsed ? 'local' : (anyImproved ? 'improved' : 'iter');
+  addLog(`iter ${String(iter).padStart(2,'0')}  |  a=${a.toFixed(3)}  |  dist=${best.fitness.toFixed(2)}  |  imp=${impPct}%${localUsed ? '  [local search]' : ''}`, logCls);
+
+  if (iter >= maxIter) {
+    stopRun();
+    document.getElementById('s-status').textContent = 'Done';
+    document.getElementById('s-status').style.color = '#10b981';
+    document.getElementById('map-badge').textContent = 'Optimal path found';
+    addLog(`── Finished! Best dist: ${best.fitness.toFixed(2)}  Total improvement: ${impPct}% ──`, 'done');
+    setPhase('', false);
+  }
+}
+
+// ── Phase indicator ──
+function setPhase(name, overlay) {
+  ['exploit','explore','spiral','local'].forEach(p => {
+    document.getElementById('ph-' + p).className = 'phase-item' + (p === name ? ' active-' + p : '');
+  });
+}
+
+// ── Stats ──
+function updateStats(a, improved, local) {
+  if (!best) return;
+  document.getElementById('s-dist').textContent = best.fitness.toFixed(1);
+  document.getElementById('s-iter').textContent = iter + ' / ' + maxIter;
+  const imp = startDist > 0 ? ((startDist - best.fitness) / startDist * 100).toFixed(1) + '%' : '—';
+  document.getElementById('s-imp').textContent  = imp;
+  document.getElementById('s-a').textContent    = a != null ? a.toFixed(3) : '2.000';
+  document.getElementById('i-best').textContent = best.fitness.toFixed(1);
+  document.getElementById('s-phase').textContent = local ? 'Local search active' : (improved ? 'Improved!' : '');
+}
+
+// ── Log ──
+function addLog(msg, cls) {
+  const d = document.getElementById('log');
+  const el = document.createElement('div');
+  el.className = 'log-line ' + (cls || '');
+  el.textContent = msg;
+  d.appendChild(el);
+  const box = document.getElementById('log');
+  box.parentElement.scrollTop = 9999;
+  logCount++;
+  document.getElementById('log-count').textContent = logCount + ' lines';
+}
+
+function clearLog() {
+  document.getElementById('log').innerHTML = '';
+  logCount = 0;
+  document.getElementById('log-count').textContent = '0 lines';
+}
+
+// ── Controls ──
+function toggleRun() {
+  if (running) { stopRun(); return; }
+  if (pts.length === 0) newPoints();
+  if (iter === 0) initWhales();
+  running = true;
+  const btn = document.getElementById('btn-run');
+  btn.textContent = '■ Stop';
+  btn.classList.add('stop-mode');
+  document.getElementById('btn-step').disabled = true;
+  document.getElementById('s-status').textContent = 'Running';
+  document.getElementById('s-status').style.color = '#3b82f6';
+  document.getElementById('map-badge').textContent = 'Optimizing...';
+  function tick() {
+    woaStep();
+    if (running && iter < maxIter) animTimer = setTimeout(tick, +document.getElementById('sl-sp').value);
+  }
+  tick();
+}
+
+function stopRun() {
+  running = false;
+  clearTimeout(animTimer);
+  const btn = document.getElementById('btn-run');
+  btn.textContent = '▶ Run';
+  btn.classList.remove('stop-mode');
+  document.getElementById('btn-step').disabled = (iter >= maxIter);
+  if (iter > 0 && iter < maxIter) {
+    document.getElementById('s-status').textContent = 'Paused';
+    document.getElementById('s-status').style.color = '#f59e0b';
+  }
+}
+
+function resetAll() {
+  stopRun();
+  if (pts.length === 0) { newPoints(); return; }
+  initWhales();
+  clearLog();
+  convHistory = [{ i: 0, d: best.fitness, local: false }];
+  document.getElementById('s-status').textContent = 'Ready';
+  document.getElementById('s-status').style.color = '#64748b';
+  document.getElementById('s-a').textContent = '2.000';
+  document.getElementById('s-imp').textContent = '—';
+  document.getElementById('map-badge').textContent = 'Initialized';
+  ['ph-exploit','ph-explore','ph-spiral','ph-local'].forEach(id => {
+    document.getElementById(id).className = 'phase-item';
+  });
+  document.getElementById('btn-step').disabled = false;
+  drawMap(); drawGraph();
+  addLog('Initialized — ' + pts.length + ' waypoints, ' + whales.length + ' whales, ' + maxIter + ' max iterations', 'init');
+  addLog('Initial best distance: ' + best.fitness.toFixed(2), 'init');
+}
+
+function stepOnce() {
+  if (pts.length === 0) newPoints();
+  if (iter === 0) initWhales();
+  if (iter >= maxIter) return;
+  woaStep();
+}
+
+// ── Draw MAP ──
+function drawMap() {
+  const W = CM.width / DPR, H = CM.height / DPR;
+  ctxM.clearRect(0, 0, W, H);
+
+  const PAD = 28;
+  const px = p => ({ x: PAD + p.x * (W - PAD*2), y: PAD + p.y * (H - PAD*2) });
+
+  // Grid
+  ctxM.strokeStyle = 'rgba(59,130,246,0.06)';
+  ctxM.lineWidth = 0.5;
+  for (let x = 0; x < W; x += 40) { ctxM.beginPath(); ctxM.moveTo(x,0); ctxM.lineTo(x,H); ctxM.stroke(); }
+  for (let y = 0; y < H; y += 40) { ctxM.beginPath(); ctxM.moveTo(0,y); ctxM.lineTo(W,y); ctxM.stroke(); }
+
+  if (!best || !pts.length) return;
+
+  // All whale paths (very faint)
+  whales.forEach(w => {
+    ctxM.beginPath();
+    const s = px(pts[w.path[0]]);
+    ctxM.moveTo(s.x, s.y);
+    w.path.forEach(idx => { const p = px(pts[idx]); ctxM.lineTo(p.x, p.y); });
+    ctxM.lineTo(s.x, s.y);
+    ctxM.strokeStyle = 'rgba(99,179,237,0.07)';
+    ctxM.lineWidth = 1;
+    ctxM.stroke();
+  });
+
+  // Best path glow (soft layer)
+  const path = best.path;
+  const s0 = px(pts[path[0]]);
+  ctxM.beginPath();
+  ctxM.moveTo(s0.x, s0.y);
+  path.forEach(idx => { const p = px(pts[idx]); ctxM.lineTo(p.x, p.y); });
+  ctxM.lineTo(s0.x, s0.y);
+  ctxM.strokeStyle = 'rgba(16,185,129,0.18)';
+  ctxM.lineWidth = 6;
+  ctxM.stroke();
+
+  // Best path sharp
+  ctxM.beginPath();
+  ctxM.moveTo(s0.x, s0.y);
+  path.forEach(idx => { const p = px(pts[idx]); ctxM.lineTo(p.x, p.y); });
+  ctxM.lineTo(s0.x, s0.y);
+  ctxM.strokeStyle = '#10b981';
+  ctxM.lineWidth = 1.8;
+  ctxM.stroke();
+
+  // Direction arrows
+  for (let i = 0; i < path.length; i++) {
+    const a = px(pts[path[i]]), b = px(pts[path[(i+1) % path.length]]);
+    const mx = (a.x+b.x)/2, my = (a.y+b.y)/2;
+    const ang = Math.atan2(b.y-a.y, b.x-a.x);
+    ctxM.save();
+    ctxM.translate(mx, my);
+    ctxM.rotate(ang);
+    ctxM.beginPath();
+    ctxM.moveTo(5,0); ctxM.lineTo(-5,-4); ctxM.lineTo(-5,4); ctxM.closePath();
+    ctxM.fillStyle = 'rgba(16,185,129,0.6)';
+    ctxM.fill();
+    ctxM.restore();
+  }
+
+  // Nodes
+  pts.forEach((pt, i) => {
+    const p = px(pt);
+    const isDepot = best.path[0] === i;
+    const r = isDepot ? 11 : 7;
+    // outer ring
+    ctxM.beginPath();
+    ctxM.arc(p.x, p.y, r + 3, 0, Math.PI*2);
+    ctxM.fillStyle = isDepot ? 'rgba(16,185,129,0.15)' : 'rgba(59,130,246,0.10)';
+    ctxM.fill();
+    // node
+    ctxM.beginPath();
+    ctxM.arc(p.x, p.y, r, 0, Math.PI*2);
+    ctxM.fillStyle = isDepot ? '#10b981' : '#3b82f6';
+    ctxM.fill();
+    ctxM.strokeStyle = isDepot ? '#065f46' : '#1e3a8a';
+    ctxM.lineWidth = 1.5;
+    ctxM.stroke();
+    // label
+    ctxM.fillStyle = '#fff';
+    ctxM.font = (isDepot ? '700 ' : '600 ') + '9px ' + "'JetBrains Mono', monospace";
+    ctxM.textAlign = 'center';
+    ctxM.textBaseline = 'middle';
+    ctxM.fillText(i+1, p.x, p.y);
+  });
+
+  // Dist label
+  ctxM.fillStyle = '#64748b';
+  ctxM.font = "11px 'JetBrains Mono', monospace";
+  ctxM.textAlign = 'left';
+  ctxM.fillText('dist: ' + best.fitness.toFixed(1) + '  |  iter: ' + iter, 8, H-6);
+}
+
+// ── Draw GRAPH ──
+function drawGraph() {
+  const W = CG.width / DPR, H = CG.height / DPR;
+  ctxG.clearRect(0, 0, W, H);
+
+  if (convHistory.length < 2) return;
+
+  const PAD = { l: 52, r: 20, t: 20, b: 38 };
+  const gW = W - PAD.l - PAD.r, gH = H - PAD.t - PAD.b;
+
+  const allD = convHistory.map(h => h.d);
+  const minD = Math.min(...allD), maxD = Math.max(...allD);
+  const rangeD = maxD - minD || 1;
+  const maxI = maxIter;
+
+  const gx = i => PAD.l + (i / maxI) * gW;
+  const gy = d => PAD.t + gH - ((d - minD) / rangeD) * gH;
+
+  // Grid lines
+  ctxG.strokeStyle = 'rgba(59,130,246,0.08)';
+  ctxG.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = PAD.t + i * gH / 4;
+    ctxG.beginPath(); ctxG.moveTo(PAD.l, y); ctxG.lineTo(PAD.l + gW, y); ctxG.stroke();
+    const v = maxD - i * (rangeD / 4);
+    ctxG.fillStyle = '#64748b';
+    ctxG.font = "10px 'JetBrains Mono', monospace";
+    ctxG.textAlign = 'right';
+    ctxG.fillText(v.toFixed(0), PAD.l - 6, y + 3);
+  }
+  for (let i = 0; i <= 5; i++) {
+    const x = PAD.l + i * gW / 5;
+    ctxG.beginPath(); ctxG.moveTo(x, PAD.t); ctxG.lineTo(x, PAD.t + gH); ctxG.stroke();
+    ctxG.fillStyle = '#64748b';
+    ctxG.font = "10px 'JetBrains Mono', monospace";
+    ctxG.textAlign = 'center';
+    ctxG.fillText(Math.round(i * maxI / 5), x, PAD.t + gH + 14);
+  }
+
+  // Axes
+  ctxG.strokeStyle = 'rgba(99,179,237,0.3)';
+  ctxG.lineWidth = 1;
+  ctxG.beginPath(); ctxG.moveTo(PAD.l, PAD.t); ctxG.lineTo(PAD.l, PAD.t + gH); ctxG.lineTo(PAD.l + gW, PAD.t + gH); ctxG.stroke();
+
+  // Axis labels
+  ctxG.fillStyle = '#64748b';
+  ctxG.font = "11px 'JetBrains Mono', monospace";
+  ctxG.textAlign = 'center';
+  ctxG.fillText('Iteration →', PAD.l + gW / 2, H - 4);
+  ctxG.save();
+  ctxG.rotate(-Math.PI / 2);
+  ctxG.fillText('Distance', -(PAD.t + gH / 2), 14);
+  ctxG.restore();
+
+  // Area
+  ctxG.beginPath();
+  ctxG.moveTo(gx(convHistory[0].i), gy(convHistory[0].d));
+  convHistory.forEach(h => ctxG.lineTo(gx(h.i), gy(h.d)));
+  ctxG.lineTo(gx(convHistory[convHistory.length-1].i), PAD.t + gH);
+  ctxG.lineTo(gx(0), PAD.t + gH);
+  ctxG.closePath();
+  ctxG.fillStyle = 'rgba(16,185,129,0.08)';
+  ctxG.fill();
+
+  // Line
+  ctxG.beginPath();
+  ctxG.moveTo(gx(convHistory[0].i), gy(convHistory[0].d));
+  convHistory.forEach(h => ctxG.lineTo(gx(h.i), gy(h.d)));
+  ctxG.strokeStyle = '#10b981';
+  ctxG.lineWidth = 2;
+  ctxG.stroke();
+
+  // Points
+  convHistory.forEach(h => {
+    ctxG.beginPath();
+    ctxG.arc(gx(h.i), gy(h.d), h.local ? 5 : 3, 0, Math.PI*2);
+    ctxG.fillStyle = h.local ? '#f59e0b' : '#10b981';
+    ctxG.fill();
+    if (h.local) {
+      ctxG.beginPath();
+      ctxG.arc(gx(h.i), gy(h.d), 8, 0, Math.PI*2);
+      ctxG.strokeStyle = 'rgba(245,158,11,0.35)';
+      ctxG.lineWidth = 1;
+      ctxG.stroke();
+    }
+  });
+
+  // Current best label
+  if (convHistory.length > 1) {
+    const last = convHistory[convHistory.length-1];
+    ctxG.fillStyle = '#10b981';
+    ctxG.font = "bold 11px 'JetBrains Mono', monospace";
+    ctxG.textAlign = 'left';
+    ctxG.fillText(last.d.toFixed(1), gx(last.i) + 6, gy(last.d) - 4);
+  }
+}
+
+// ── Init ──
+window.addEventListener('resize', () => { resizeCanvases(); drawMap(); drawGraph(); });
+resizeCanvases();
+newPoints();
+</script>
+</body>
+</html>

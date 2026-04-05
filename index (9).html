@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drone Path Optimization — Whale Optimization Algorithm | Group 14</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <div class="container">
+
+    <!-- ── HEADER ── -->
+    <header>
+      <div class="header-left">
+        <div class="logo-mark">WOA</div>
+        <div>
+          <div class="header-title">Drone Path Optimization — Whale Optimization Algorithm</div>
+          <div class="header-sub">NSUT &nbsp;·&nbsp; COCSC303 — Design &amp; Analysis of Algorithms &nbsp;·&nbsp; Group 14</div>
+        </div>
+      </div>
+      <div class="badges">
+        <span class="badge badge-blue">C++ Algorithm</span>
+        <span class="badge badge-green">Live Simulation</span>
+        <span class="badge badge-amber">DAA Mini Project</span>
+      </div>
+    </header>
+
+    <!-- ── CONTROLS ── -->
+    <div class="controls-bar">
+      <div class="ctrl-group">
+        <label>Waypoints (M)</label>
+        <div class="ctrl-row">
+          <input type="range" id="sl-pts" min="5" max="30" value="15" step="1" />
+          <span class="ctrl-val" id="v-pts">15</span>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <label>Whales / Population (N)</label>
+        <div class="ctrl-row">
+          <input type="range" id="sl-wh" min="5" max="30" value="10" step="1" />
+          <span class="ctrl-val" id="v-wh">10</span>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <label>Max Iterations (T)</label>
+        <div class="ctrl-row">
+          <input type="range" id="sl-it" min="5" max="50" value="20" step="1" />
+          <span class="ctrl-val" id="v-it">20</span>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <label>Animation Speed</label>
+        <div class="ctrl-row">
+          <input type="range" id="sl-sp" min="80" max="1000" value="350" step="50" />
+          <span class="ctrl-val" id="v-sp">350ms</span>
+        </div>
+      </div>
+      <div class="btn-group">
+        <button onclick="newPoints()">New Points</button>
+        <button id="btn-step" onclick="stepOnce()" disabled>Step</button>
+        <button onclick="resetAll()">Reset</button>
+        <button class="run-btn" id="btn-run" onclick="toggleRun()">&#9654; Run</button>
+      </div>
+    </div>
+
+    <!-- ── STATS ── -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="s-label">Best Distance</div>
+        <div class="s-val" id="s-dist">—</div>
+        <div class="s-sub">Euclidean units</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label">Iteration</div>
+        <div class="s-val" id="s-iter">0 / 20</div>
+        <div class="s-sub">of max iterations</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label">Improvement</div>
+        <div class="s-val" id="s-imp">—</div>
+        <div class="s-sub">from initial path</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label">Parameter a</div>
+        <div class="s-val" id="s-a">2.000</div>
+        <div class="s-sub">exploration → exploit</div>
+      </div>
+      <div class="stat-card">
+        <div class="s-label">Status</div>
+        <div class="s-val" id="s-status">Ready</div>
+        <div class="s-sub" id="s-phase">&nbsp;</div>
+      </div>
+    </div>
+
+    <!-- ── MAIN CANVASES ── -->
+    <div class="main-grid">
+
+      <div class="canvas-panel">
+        <div class="cp-header">
+          <span class="cp-title">Drone Path Map</span>
+          <span class="cp-badge" id="map-badge">Waiting</span>
+        </div>
+        <canvas id="c-map" height="320"></canvas>
+        <div class="legend">
+          <div class="leg-item"><div class="leg-dot" style="background:#10b981"></div> Depot (start)</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#3b82f6"></div> Waypoint</div>
+          <div class="leg-item"><div class="leg-line" style="background:#10b981"></div> Best path</div>
+          <div class="leg-item"><div class="leg-line" style="background:rgba(255,255,255,0.07)"></div> Whale paths</div>
+        </div>
+      </div>
+
+      <div class="canvas-panel">
+        <div class="cp-header">
+          <span class="cp-title">Convergence Graph — Iteration vs Distance</span>
+          <span class="cp-badge" id="graph-badge">O(N×M×T)</span>
+        </div>
+        <canvas id="c-graph" height="320"></canvas>
+        <div class="legend">
+          <div class="leg-item"><div class="leg-line" style="background:#10b981"></div> Best distance per iteration</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#f59e0b"></div> Local search trigger (every 3rd iter)</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── BOTTOM ROW ── -->
+    <div class="bottom-grid">
+
+      <div class="log-panel">
+        <div class="cp-header">
+          <span class="cp-title">Execution Log</span>
+          <span class="cp-badge" id="log-count">0 lines</span>
+        </div>
+        <div class="log-scroll" id="log"></div>
+      </div>
+
+      <div class="info-panel">
+        <div class="cp-header">
+          <span class="cp-title">Algorithm State</span>
+          <span class="cp-badge">WOA Parameters</span>
+        </div>
+        <div class="info-content">
+          <div class="info-grid">
+            <div class="info-row"><div class="i-label">Time Complexity</div><div class="i-val">O(N × M × T)</div></div>
+            <div class="info-row"><div class="i-label">Space Complexity</div><div class="i-val">O(N × M)</div></div>
+            <div class="info-row"><div class="i-label">Whales (N)</div><div class="i-val" id="i-wh">10</div></div>
+            <div class="info-row"><div class="i-label">Waypoints (M)</div><div class="i-val" id="i-pts">15</div></div>
+            <div class="info-row"><div class="i-label">Initial dist</div><div class="i-val" id="i-init">—</div></div>
+            <div class="info-row"><div class="i-label">Current best</div><div class="i-val" id="i-best">—</div></div>
+          </div>
+          <div class="phase-bar" id="phase-bar">
+            <div class="phase-item" id="ph-exploit">Exploit</div>
+            <div class="phase-item" id="ph-explore">Explore</div>
+            <div class="phase-item" id="ph-spiral">Spiral</div>
+            <div class="phase-item" id="ph-local">Local</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── FOOTER ── -->
+    <footer>
+      <div class="footer-txt">NETAJI SUBHAS UNIVERSITY OF TECHNOLOGY &nbsp;·&nbsp; Group 14 &nbsp;·&nbsp; COCSC303</div>
+      <div class="footer-txt">Whale Optimization Algorithm — Mirjalili &amp; Lewis, 2016 &nbsp;·&nbsp; Implemented in C++</div>
+    </footer>
+
+  </div><!-- end .container -->
+
+  <script src="woa.js"></script>
+
+</body>
+</html>
